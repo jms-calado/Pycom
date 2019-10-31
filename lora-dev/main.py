@@ -1,12 +1,12 @@
 """ OTAA Node example compatible with the LoPy Nano Gateway """
 from network import LoRa
+from network import WLAN
 import socket
 import binascii
 import struct
 import time
 from CayenneLPP import CayenneLPP
 from logger import Logger
-
 
 #enable logger
 log = Logger()
@@ -105,7 +105,7 @@ and the node tries to join the network
 """
 
 
-def initLoRa():
+def InitLoRa():
     try: # Initialize LoRa in LORAWAN mode.
         lora = LoRa(mode=LoRa.LORAWAN,device_class=LoRa.CLASS_C)
         try:
@@ -175,8 +175,12 @@ def initLoRa():
         print("Failed to Initialize LoRa")
         log.debugLog("initLoRa Failed ", p=False)
 
-
-
+'''
+CreateSocket:
+Does not receive any parameters
+return s
+In this function a socket is Initialize
+'''
 
 def CreateSocket():
     try:
@@ -195,8 +199,96 @@ def CreateSocket():
         log.debugLog("CreateSocket Failed ", p=False)
 
 
+'''
+ScanAndSort:
+Does not receive any parameters
+return res a list of decimal numbers
+In this function we do initialize wifi in station mode, then we do a wifi scnan
+the result is list of all access points in our range, by selecting the first 3
+we select the ones we the best RSSI (received signal strength indication)
+For the wifi API we need to send the BSSID and RSSI, for the TTN we need to send
+this numbers in decimal
 
-lora=initLoRa();
+'''
+def ScanAndSort():
+    wlan = WLAN(mode=WLAN.STA)
+    ssids = wlan.scan()
+    ssids =ssids[0:3]
+    #print(ssids)
+
+    #BSSID 0
+    #print(ssids[0][1])
+    a=ssids[0][1]
+    a=binascii.hexlify(a)
+    #print(a)
+    res=[]
+    for i in range (12):
+        if (i%2) == 0:
+            aux=int(a[i:i+2], 16)
+            res.append(aux)
+        else:
+             pass
+
+
+    #print(BSSID0)
+    #RSSI0
+    #print(ssids[0][4])
+    a=ssids[0][4]
+    RSSI0 = -a
+    res.append(RSSI0)
+    #print(RSSI0)
+
+    #BSSID 1
+    #print(ssids[1][1])
+    a=ssids[1][1]
+    a=binascii.hexlify(a)
+    #print(a)
+
+    for i in range (12):
+        if (i%2) == 0:
+            aux=int(a[i:i+2], 16)
+            res.append(aux)
+        else:
+             pass
+    BSSID1=int(a, 16)
+    #print(BSSID1)
+
+    #RSSI 1
+    #print(ssids[1][4])
+    a=ssids[1][4]
+    RSSI1 = -a
+    #print(RSSI1)
+    res.append(RSSI1)
+
+    #BSSID 2
+    #print(ssids[2][1])
+    a=ssids[2][1]
+    a=binascii.hexlify(a)
+    #print(a)
+    for i in range (12):
+        if (i%2) == 0:
+            aux=int(a[i:i+2], 16)
+            res.append(aux)
+        else:
+             pass
+
+    BSSID2=int(a, 16)
+
+    #print(BSSID2)
+
+    #RSSI 2
+    #print(ssids[2][4])
+    a=ssids[2][4]
+    RSSI2 = -a
+    res.append(RSSI2)
+    #print(RSSI2)
+    #print(res)
+
+
+    return res
+
+
+lora=InitLoRa();
 s=CreateSocket();
 
 '''
@@ -211,14 +303,25 @@ while 1:
     '''
     #pkt = b'PKT #' + bytes([i])
     #can be used for debug
+
     pkt = b'{"timestamp":"YYYY-MM-DDThh:mm:ssZ","location":{"lat":0,"lon":0,"alt":0,"hdop":0,"vdop":0,"pdop":0},"batteryLevel":3,"accompanied":1}'
 
 
     print('Sending:', pkt)
     s.send(pkt)
+
     time.sleep(5)
 
-    #print(lora.stats()) #(rx_timestamp=127533922, rssi=-42, snr=8.0, sfrx=3, sftx=5, tx_trials=0, tx_power=0, tx_time_on_air=241, tx_counter=14,tx_frequency=0)
+
+
+
+    #wifi pkt
+    #s.send(bytes(scanandsort()))
+
+
+
+    #print(lora.stats())
+    #(rx_timestamp=127533922, rssi=-42, snr=8.0, sfrx=3, sftx=5, tx_trials=0, tx_power=0, tx_time_on_air=241, tx_counter=14,tx_frequency=0)
 
     #cayenne = CayenneLPP()
     #cayenne.add_presence(10,0)
@@ -232,6 +335,7 @@ while 1:
     #lpp.addGPS(10, 52.37365, 4.88650, 2)    # channel 3, coordinates
 
     #ttn.sendBytes(lpp.getBuffer(), lpp.getSize())
+
     '''
     Receive a packet
 
