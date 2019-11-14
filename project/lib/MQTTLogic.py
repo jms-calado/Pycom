@@ -27,7 +27,7 @@ class MQTTLogic:
     def sub_cb(self, topic, msg):
         #print("topic: " + str(topic))
         #print("msg: " + str(msg))
-        self.log.debugLog('Sub Topic: {} // Msg: {}'.format(topic.decode(), msg.decode()))
+        self.log.debugLog('Sub Topic: {} ||| Msg: {}'.format(topic.decode(), msg.decode()))
         if topic == config.MQTT_SUB_ACTIVE.encode():
             if msg == b'true':
                 state.OP_MODE = True
@@ -87,34 +87,53 @@ class MQTTLogic:
             except Exception as mqttconnecterror:
                 self.log.debugLog('Exception MQTT Connect: {}'.format(mqttconnecterror))
                 #self.log.debugLog(mqttconnecterror)
-            state.MQTT_ACTIVE = True
+                state.MQTT_ACTIVE = False
+                return state.MQTT_ACTIVE
+            self.log.debugLog('MQTT: connected')
             try:
                 self.client.subscribe(topic=config.MQTT_SUB_ACTIVE, qos=1)
-                self.client.subscribe(topic=config.MQTT_SUB_CONF_ENERGY, qos=1)
-                self.client.subscribe(topic=config.MQTT_SUB_CONF_WIFI, qos=1)
-                self.log.debugLog('MQTT: connected and subbed')
                 time.sleep(1)
-                '''
-                try:
-                    registered = pycom.nvs_get('registered')
-                except Exception as nvserror:
-                    registered = None
-                self.log.debugLog('MQTT registered: {}'.format(registered))
-                if registered == None:
-                    msg_reg = '{"deviceId":"' + config.MQTT_DEVICE_ID + '","component":["lteNB","lora","wifi","bluetooth","accelerometer","gnss"],"batteryCapacity":800}'
-                    self.client.publish(topic=config.MQTT_PUB_REG, msg=msg_reg, retain=False, qos=1)
-                    pycom.nvs_set('registered', 1)
-                '''
             except Exception as mqttpubsuberror:
-                self.log.debugLog('Exception MQTT PUB/SUB: {}'.format(mqttpubsuberror))
-
+                self.log.debugLog('Exception MQTT_SUB_ACTIVE: {}'.format(mqttpubsuberror))
+                state.MQTT_ACTIVE = False
+                return state.MQTT_ACTIVE
+            try:
+                self.client.subscribe(topic=config.MQTT_SUB_CONF_ENERGY, qos=1)
+                time.sleep(1)
+            except Exception as mqttpubsuberror:
+                self.log.debugLog('Exception MQTT_SUB_CONF_ENERGY: {}'.format(mqttpubsuberror))
+                state.MQTT_ACTIVE = False
+                return state.MQTT_ACTIVE
+            try:
+                self.client.subscribe(topic=config.MQTT_SUB_CONF_WIFI, qos=1)
+                time.sleep(1)
+            except Exception as mqttpubsuberror:
+                self.log.debugLog('Exception MQTT_SUB_CONF_WIFI: {}'.format(mqttpubsuberror))
+                state.MQTT_ACTIVE = False
+                return state.MQTT_ACTIVE
+            self.log.debugLog('MQTT: subbed')
+            '''
+            try:
+                registered = pycom.nvs_get('registered')
+            except Exception as nvserror:
+                registered = None
+            self.log.debugLog('MQTT registered: {}'.format(registered))
+            if registered == None:
+                msg_reg = '{"deviceId":"' + config.MQTT_DEVICE_ID + '","component":["lteNB","lora","wifi","bluetooth","accelerometer","gnss"],"batteryCapacity":800}'
+                self.client.publish(topic=config.MQTT_PUB_REG, msg=msg_reg, retain=False, qos=1)
+                pycom.nvs_set('registered', 1)
+            '''
+            
             try:
                 # start thread
                 self.runThread = True
                 self.mqttLogic_thread = _thread.start_new_thread(self.mqtt_thread,())
             except Exception as mqttstartthread:
                 self.log.debugLog('Exception MQTT start thread: {}'.format(mqttstartthread))
+                state.MQTT_ACTIVE = False
+                return state.MQTT_ACTIVE
 
+            state.MQTT_ACTIVE = True
             return state.MQTT_ACTIVE
 
     def mqtt_thread(self):
@@ -149,6 +168,7 @@ class MQTTLogic:
         self.log.debugLog('end mqtt')
 
     def pubMQTT(self, topic, msg, retain, qos):
+        #self.log.debugLog('pubMQTT check_msg')
         self.client.check_msg() #check SUBed messages
         if state.MQTT_ACTIVE:
             try:
@@ -163,3 +183,17 @@ class MQTTLogic:
                 self.client.ping()
             except Exception as e:
                 self.log.debugLog(e)
+            try:
+                res = self.client.check_msg()
+                if(res == b"PINGRESP") :
+                    self.log.debugLog('Ping Successful')
+            except Exception as e:
+                self.log.debugLog(e)
+
+    def pubStatus(self, timestamp, lat='0', lon='0', alt='0', hdop='0', vdop='0', pdop='0', batteryLevel='0', x='0', y='0', z='0'):
+        try:
+            statusMsg = '{"timestamp":"' + timestamp + '","location":{"lat":' + lat + ',"lon":' + lon + ',"alt":' + alt + ',"hdop":' + hdop + ',"vdop":' + vdop + ',"pdop":' + pdop + '},"batteryLevel":' + batteryLevel + ',"sensor":{"accelerometer":"' + x + ',' + y + ',' + z + '"}}'
+            #statusMsg = '{"timestamp":"{}","location":{"lat":{},"lon":{},"alt":{},"hdop":{},"vdop":{},"pdop":{}},"batteryLevel":{}}'.format(timestamp, lat, lon, alt, hdop, vdop, pdop, batteryLevel)
+            self.pubMQTT(topic=config.MQTT_PUB_STATUS, msg=statusMsg, retain=False, qos=0)
+        except Exception as e:
+            print('Status PUB Exception: {}'.format(e))
