@@ -86,18 +86,25 @@ def startLTE():
     try:
         iccid = lte.iccid()
         if iccid is None:
+            log.debugLog('Iccid is None 1')
             time.sleep(5)
             iccid = lte.iccid()
             if iccid is None:
-                raise ValueError('Iccid is None')
+                log.debugLog('Iccid is None 2')
+                time.sleep(5)
+                iccid = send_at_cmd_pretty(lte, 'AT+SQNCCID?').split('\r\n')[1].split('"')[1]
+                if iccid == '':
+                    raise ValueError('Iccid is None AT')
+                else:
+                    log.debugLog("LTE iccid AT: {}".format(iccid))
             else:
-                log.debugLog("LTE iccid retry: {}".format(iccid))
+                log.debugLog("LTE iccid 2: {}".format(iccid))
         else:
-            log.debugLog("LTE iccid: {}".format(iccid))
+            log.debugLog("LTE iccid 1: {}".format(iccid))
     except Exception as e:
         log.debugLog("LTE iccid error: {}".format(e))
-        state.CONNECTED = False
-        return lte
+        #state.CONNECTED = False
+        #return lte
     try:
         # has coverage:
         lte_coverage = lte.ue_coverage()
@@ -108,7 +115,7 @@ def startLTE():
                 state.CONNECTED = True
                 break
     except Exception as e:
-        log.debugLog("startLTE error: {}".format(e))
+        log.debugLog("getLTE error: {}".format(e))
     '''finally:
         self.endLTE(lte)
         log.debugLog('end lte')
@@ -117,12 +124,14 @@ def startLTE():
         # Query AT
         log.debugLog('Query AT')
         lte.pppsuspend()
-        showphy = send_at_cmd_pretty(lte, 'AT!="showphy"')
-        for line in showphy:
-            log.debugLog(line)
-        fsm = send_at_cmd_pretty(lte, 'AT!="fsm"')
-        for line in fsm:
-            log.debugLog(line)
+        '''
+            showphy = send_at_cmd_pretty(lte, 'AT!="showphy"')
+            for line in showphy:
+                log.debugLog(line)
+            fsm = send_at_cmd_pretty(lte, 'AT!="fsm"')
+            for line in fsm:
+                log.debugLog(line)
+        '''
         atCSQ = send_at_cmd_pretty(lte, 'AT+CSQ')
         log.debugLog(atCSQ)
         atCEREG = send_at_cmd_pretty(lte, 'AT+CEREG?')
