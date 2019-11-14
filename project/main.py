@@ -45,6 +45,7 @@ except Exception as nvserror:
 if active is not None:
     if active == 1:
         state.OP_MODE = True
+        log.debugLog('MQTT activated: True')
 
 # LTE
 if state.LTENB_ACTIVE:
@@ -66,7 +67,7 @@ if not state.CONNECTED:
     else:
         nb.endLTE(lte)
     time.sleep(1)
-    machine.deepsleep(7200000) # 2 hours = 7200000
+    machine.deepsleep(10000) # 2 hours = 7200000
 # If connected, set: RTC; MQTT connection; GNSS. Start Normal Op Mode
 else:
     pycom.rgbled(0xff) # dark blue led
@@ -89,6 +90,10 @@ else:
     if not state.OP_MODE:
         log.debugLog("Awaiting Activation")
     while not state.OP_MODE:
+        time.sleep(1)
+    if state.OP_MODE:
+        log.debugLog("Activated. Stoping mqtt thread.")
+        mqttLogic.stopMQTT()
         time.sleep(1)
     log.debugLog("Resuming Normal Operation Mode")
     #mqttLogic.stopMQTT()
@@ -124,6 +129,7 @@ else:
     last_config_gnss_sr = config.GNSS_SR
     while(state.OP_MODE):
         if last_state_gnss is not state.GNSS_ACTIVE:
+            log.debugLog('last_state_gnss: {} is not state.GNSS_ACTIVE: {}'.format(last_state_gnss, state.GNSS_ACTIVE))
             if state.GNSS_ACTIVE:
                 # Start the GPS thread
                 gpsThread = l76gps.startGPSThread()
@@ -136,22 +142,27 @@ else:
                 l76gps.stopGPSThread()
                 time.sleep(1)
         if last_state_ltenb is not state.LTENB_ACTIVE:
+            log.debugLog('last_state_ltenb: {} is not state.LTENB_ACTIVE: {}'.format(last_state_ltenb, state.LTENB_ACTIVE))
             if state.LTENB_ACTIVE:
                 lte = nb.startLTE()
             else:
                 nb.endLTE(lte)
         if last_state_wifi is not state.WIFI_ACTIVE:
+            log.debugLog('last_state_wifi: {} is not state.WIFI_ACTIVE: {}'.format(last_state_wifi, state.WIFI_ACTIVE))
             if state.WIFI_ACTIVE:
                 wlan = wifi.connectWifi()
             else:
                 wifi.disconnectWifi(wlan)
         if last_config_gnss_sr is not config.GNSS_SR:
+            log.debugLog('last_config_gnss_sr: {} is not config.GNSS_SR: {}'.format(last_config_gnss_sr, config.GNSS_SR))
             pass #TO-DO: define function to change GNSS sample rate
         if state.LTENB_ACTIVE:
             if config.MQTT_PUB_SR is not config.LTENB_SR:
+                log.debugLog('config.MQTT_PUB_SR: {} is not config.LTENB_SR: {}'.format(config.MQTT_PUB_SR, config.LTENB_SR))
                 config.MQTT_PUB_SR = config.LTENB_SR
         if state.WIFI_ACTIVE:
             if config.MQTT_PUB_SR is not config.WIFI_SR:
+                log.debugLog('config.MQTT_PUB_SR: {} is not config.WIFI_SR: {}'.format(config.MQTT_PUB_SR, config.WIFI_SR))
                 config.MQTT_PUB_SR = config.WIFI_SR
         time.sleep(10)
 
@@ -185,3 +196,5 @@ else:
     state.CONNECTED = False
 
 log.debugLog('End RUN // {}'.format(rtc.now()))
+
+machine.main('boot.py')
