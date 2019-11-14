@@ -4,6 +4,7 @@ import binascii
 import time
 import config
 import state
+from machine import RTC, WDT
 from MQTTLogic import MQTTLogic
 from logger import Logger
 
@@ -101,7 +102,7 @@ class L76micropyGPS:
             try:
                 _thread.exit()
             except SystemExit as sysexiterror:
-                print('System Exit Error: {}'.format(sysexiterror))
+                print('System Exit Error feedMicroGPS: {}'.format(sysexiterror))
 
     def standbyGPS(self):
         #enter standby mode for power saving
@@ -132,12 +133,23 @@ class L76micropyGPS:
     def startPubThread(self, mqttLogic):
         # start thread feeding mqtt Pub Gps
         self.runPubThread = True
-        self.pub_thread = _thread.start_new_thread(self.mqttPubGps,[mqttLogic])
+        wdt = WDT(timeout=120000)  # enable it with a timeout of 2 minutes
+        self.pub_thread = _thread.start_new_thread(self.mqttPubGps,[mqttLogic, wdt])
 
-    def mqttPubGps(self, mqttLogic):
+    def mqttPubGps(self, mqttLogic, wdt):
         print('Running mqttPubGps_thread id: {}'.format(_thread.get_ident()))
         while self.runPubThread:
             if True: #if self.my_gps.fix_stat:
+                if self.my_gps.fix_stat:
+                    rtc = RTC()
+                    if not rtc.synced():
+                        gps_time = self.my_gps.timestamp
+                        gps_date = self.my_gps.date
+                        gps_year = 2000 + gps_date[2]
+                        gps_seconds = int(gps_time[2])
+                        #rtc.init((year, month, day[, hour[, minute[, second[, microsecond[, tzinfo]]]]]))
+                        rtc.init((gps_year, gps_date[1], gps_date[0], gps_time[0], gps_time[1], gps_seconds))
+                        self.log.debugLog("RTC: {}".format(rtc.now() if rtc.synced() else "unset"))
                 '''
                 #LOG:
                 self.log.gpsLog("##############################################################")
@@ -219,12 +231,13 @@ class L76micropyGPS:
             else:
                 self.log.gpsLog("No fix found")
             gc.collect()
+            wdt.feed()
             time.sleep(config.MQTT_PUB_SR)
         if not self.runPubThread:
             try:
                 _thread.exit()
             except SystemExit as sysexiterror:
-                print('System Exit Error: {}'.format(sysexiterror))
+                print('System Exit Error mqttPubGps: {}'.format(sysexiterror))
 
     def stopPubThread(self):
         self.runPubThread = False
