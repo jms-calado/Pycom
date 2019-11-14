@@ -720,7 +720,7 @@ class MicropyGPS(object):
         if self.coord_format == 'dd':
             formatted_longitude = self.longitude
             #lon_string = str(formatted_longitude[0]) + '° ' + str(self._longitude[2])
-            lon_string = "{}".format("" if self._latitude[2] == "W" else "-") + str(formatted_longitude[0])
+            lon_string = "{}".format("" if self._longitude[2] == "W" else "-") + str(formatted_longitude[0])
         elif self.coord_format == 'dms':
             formatted_longitude = self.longitude
             lon_string = str(formatted_longitude[0]) + '° ' + str(formatted_longitude[1]) + "' " + str(formatted_longitude[2]) + '" ' + str(formatted_longitude[3])
