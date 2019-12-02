@@ -81,6 +81,7 @@ else:
 
     # MQTT connect
     mqttLogic = MQTTLogic()
+    activewait = False
     for counter in range(3): # repeat startMQTT at most 3 times
         mqttactive = mqttLogic.startMQTT()
         if mqttactive:
@@ -88,15 +89,15 @@ else:
         else:
             time.sleep(30)
     if not state.OP_MODE:
+        activewait = True
         log.debugLog("Awaiting Activation")
     while not state.OP_MODE:
-        time.sleep(1)
-    if state.OP_MODE:
+        time.sleep(30)
+    if state.OP_MODE and activewait:
         log.debugLog("Activated. Stoping mqtt thread.")
         mqttLogic.stopMQTT()
         time.sleep(1)
     log.debugLog("Resuming Normal Operation Mode")
-    #mqttLogic.stopMQTT()
 
     log.debugLog("Free Mem: {}".format(gc.mem_free()))
 

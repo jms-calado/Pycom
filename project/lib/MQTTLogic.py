@@ -84,6 +84,10 @@ class MQTTLogic:
                     self.log.debugLog('Exception MQTT Connect EHOSTUNREACH: {}'.format(oserror))
                     state.MQTT_ACTIVE = False
                     return state.MQTT_ACTIVE
+                else:
+                    self.log.debugLog('Exception MQTT Connect OSError: {}'.format(oserror))
+                    state.MQTT_ACTIVE = False
+                    return state.MQTT_ACTIVE
             except Exception as mqttconnecterror:
                 self.log.debugLog('Exception MQTT Connect: {}'.format(mqttconnecterror))
                 #self.log.debugLog(mqttconnecterror)
@@ -123,15 +127,15 @@ class MQTTLogic:
                 self.client.publish(topic=config.MQTT_PUB_REG, msg=msg_reg, retain=False, qos=1)
                 pycom.nvs_set('registered', 1)
             '''
-            
-            try:
-                # start thread
-                self.runThread = True
-                self.mqttLogic_thread = _thread.start_new_thread(self.mqtt_thread,())
-            except Exception as mqttstartthread:
-                self.log.debugLog('Exception MQTT start thread: {}'.format(mqttstartthread))
-                state.MQTT_ACTIVE = False
-                return state.MQTT_ACTIVE
+            if not state.OP_MODE:
+                try:
+                    # start thread
+                    self.runThread = True
+                    self.mqttLogic_thread = _thread.start_new_thread(self.mqtt_thread,())
+                except Exception as mqttstartthread:
+                    self.log.debugLog('Exception MQTT start thread: {}'.format(mqttstartthread))
+                    state.MQTT_ACTIVE = False
+                    return state.MQTT_ACTIVE
 
             state.MQTT_ACTIVE = True
             return state.MQTT_ACTIVE
