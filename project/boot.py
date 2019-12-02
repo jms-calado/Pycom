@@ -98,7 +98,7 @@ try:
     log.bootLog('Bluetooth disabled')
 except Exception as bluetoothError:
     log.bootLog("bluetoothError: {}".format(bluetoothError))
-
+'''
 #Disable LTE
 try:
     lte = LTE()
@@ -106,7 +106,7 @@ try:
     log.bootLog('LTE disabled')
 except Exception as lteError:
     log.bootLog("lteError: {}".format(lteError))
-
+'''
 gc.collect()
 
 machine.main('main.py')
