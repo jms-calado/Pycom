@@ -63,20 +63,22 @@ def getLTE(lte):
 # successful connections without a complete power cycle between.
 def endLTE(lte):
     state.CONNECTED = False
-    #print("Disconnecting LTE ... ", end='')
     log.debugLog("Disconnecting LTE ... ")
-    lte.disconnect()
-    #print("LTE disconnected OK")
-    log.debugLog("LTE disconnected OK")
+    try:
+        lte.disconnect()
+        log.debugLog("LTE disconnected OK")
+    except Exception as lteError:
+        log.bootLog("lteError Disconnecting: {}".format(lteError))
     time.sleep(1)
-    #print("Detaching LTE ... ", end='')
     log.debugLog("Detaching LTE ... ")
-    lte.dettach()
-    #print("LTE detached OK")
-    log.debugLog("LTE detached OK")
+    try:
+        lte.dettach()
+        log.debugLog("LTE detached OK")
+    except Exception as lteError:
+        log.bootLog("lteError Detaching: {}".format(lteError))
 
 def send_at_cmd_pretty(lte, cmd):
-    response = lte.send_at_cmd(cmd, delay=1000).split('\r\n')
+    response = lte.send_at_cmd(cmd).split('\r\n')
     return response
 
 # Start LTE
