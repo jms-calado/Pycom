@@ -138,98 +138,110 @@ class L76micropyGPS:
 
     def mqttPubGps(self, mqttLogic, wdt):
         print('Running mqttPubGps_thread id: {}'.format(_thread.get_ident()))
+        someNmeaData = ''
         while self.runPubThread:
-            if True: #if self.my_gps.fix_stat:
-                if self.my_gps.fix_stat:
-                    rtc = RTC()
-                    if not rtc.synced():
-                        gps_time = self.my_gps.timestamp
-                        gps_date = self.my_gps.date
-                        gps_year = 2000 + gps_date[2]
-                        gps_seconds = int(gps_time[2])
-                        #rtc.init((year, month, day[, hour[, minute[, second[, microsecond[, tzinfo]]]]]))
-                        rtc.init((gps_year, gps_date[1], gps_date[0], gps_time[0], gps_time[1], gps_seconds))
-                        self.log.debugLog("RTC: {}".format(rtc.now() if rtc.synced() else "unset"))
-                '''
-                #LOG:
-                self.log.gpsLog("##############################################################")
-                self.log.gpsLog("my_gps.parsed_sentences: {}".format(self.my_gps.parsed_sentences))
-                self.log.gpsLog("my_gps.clean_sentences: {}".format(self.my_gps.clean_sentences))
-                self.log.gpsLog("my_gps.crc_fails: {}".format(self.my_gps.crc_fails))
-                self.log.gpsLog("my_gps.date_string: {}".format(self.my_gps.date_string("long")))
-                self.log.gpsLog("my_gps.date_string: {}".format(self.my_gps.date_string()))
-                self.log.gpsLog("my_gps.date: {}".format(self.my_gps.date))
-                self.log.gpsLog("my_gps.timestamp: {}".format(self.my_gps.timestamp))
-                # Dilution of Precision (DOP) values close to 1.0 indicate excellent quality position data
-                self.log.gpsLog("my_gps.hdop: {}".format(self.my_gps.hdop))
-                self.log.gpsLog("my_gps.pdop: {}".format(self.my_gps.pdop))
-                self.log.gpsLog("my_gps.vdop: {}".format(self.my_gps.vdop))
-                self.log.gpsLog("my_gps.valid: {}".format(self.my_gps.valid))
-                self.log.gpsLog("my_gps.satellites_in_view: {}".format(self.my_gps.satellites_in_view))
-                self.log.gpsLog("my_gps.satellites_in_use: {}".format(self.my_gps.satellites_in_use))
-                self.log.gpsLog("my_gps.satellites_visible: {}".format(self.my_gps.satellites_visible()))
-                self.log.gpsLog("my_gps.satellite_data_updated: {}".format(self.my_gps.satellite_data_updated()))
-                self.log.gpsLog("my_gps.fix_stat: {}".format(self.my_gps.fix_stat))
-                # Fix types can be: 1 = no fix, 2 = 2D fix, 3 = 3D fix
-                self.log.gpsLog("my_gps.fix_type: {}".format(self.my_gps.fix_type))
-                self.log.gpsLog("my_gps.fix_time: {}".format(self.my_gps.fix_time))
-                #Returns number of millisecond since the last sentence with a valid fix was parsed. Returns 0 if no fix has been found
-                self.log.gpsLog("my_gps.time_since_fix: {}".format(self.my_gps.time_since_fix()))
-                self.log.gpsLog("my_gps.latitude_string: {}".format(self.my_gps.latitude_string()))
-                self.log.gpsLog("my_gps.longitude_string: {}".format(self.my_gps.longitude_string()))
-                self.log.gpsLog("my_gps._latitude: {}".format(self.my_gps._latitude))
-                self.log.gpsLog("my_gps._longitude: {}".format(self.my_gps._longitude))
-                self.log.gpsLog("my_gps.altitude: {}".format(self.my_gps.altitude))
-                self.log.gpsLog("my_gps.geoid_height: {}".format(self.my_gps.geoid_height))
-                self.log.gpsLog("my_gps.coord_format: {}".format(self.my_gps.coord_format))
-                self.log.gpsLog("my_gps.compass_direction: {}".format(self.my_gps.compass_direction()))
-                self.log.gpsLog("my_gps.speed_string: {}".format(self.my_gps.speed_string()))
-                self.log.gpsLog("my_gps.speed: {}".format(self.my_gps.speed))
-                self.log.gpsLog("my_gps.course: {}".format(self.my_gps.course))
-                self.log.gpsLog("Free Mem: {}".format(gc.mem_free()))
-                #PING:
-                try:
-                    mqttLogic.pingMQTT()
-                except Exception as e:
-                    print('GPS ping Exception: {}'.format(e))
-                '''
-                #PUB:
-                try:
-                    year, month, day, hour, minute, second, weekday, yearday = time.localtime()
-                    timestamp = str('{}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}Z'.format(year, month, day, hour, minute, second)) #"YYYY-MM-DDThh:mm:ssZ"
-                except Exception as e:
-                    print('GPS timestamp Exception: {}'.format(e))
-                try:
-                    lat = self.my_gps.latitude_string() #float
-                    lon = self.my_gps.longitude_string() #float
-                    alt = str(self.my_gps.altitude) #float
-                    hdop = str(self.my_gps.hdop) #float
-                    vdop = str(self.my_gps.vdop) #float
-                    pdop = str(self.my_gps.pdop) #float
-                except Exception as e:
-                    print('GPS location Exception: {}'.format(e))
-                try:
-                    batteryLevel = str(self.py.read_battery_voltage())#integer
-                except Exception as e:
-                    print('batteryLevel Exception: {}'.format(e))
-                try:
-                    xt,yt,zt = self.acc.acceleration()
-                    x = str(xt)
-                    y = str(yt)
-                    z = str(zt)
-                    #print('x,y,z: {}, {}, {}'.format(x,y,z))
-                    #accelerometer = str(self.acc.acceleration())
-                    #print('accelerometer: {}'.format(accelerometer))
-                except Exception as e:
-                    print('accelerometer Exception: {}'.format(e))
-                try:
-                    statusMsg = '{"timestamp":"' + timestamp + '","location":{"lat":' + lat + ',"lon":' + lon + ',"alt":' + alt + ',"hdop":' + hdop + ',"vdop":' + vdop + ',"pdop":' + pdop + '},"batteryLevel":' + batteryLevel + ',"sensor":{"accelerometer":"' + x + ',' + y + ',' + z + '"}}'
-                    #statusMsg = '{"timestamp":"{}","location":{"lat":{},"lon":{},"alt":{},"hdop":{},"vdop":{},"pdop":{}},"batteryLevel":{}}'.format(timestamp, lat, lon, alt, hdop, vdop, pdop, batteryLevel)
-                    mqttLogic.pubMQTT(topic=config.MQTT_PUB_STATUS, msg=statusMsg, retain=False, qos=0)
-                except Exception as e:
-                    print('GPS PUB Exception: {}'.format(e))
-            else:
-                self.log.gpsLog("No fix found")
+            gc.collect()
+            # get some NMEA data
+            #I2C L76 says it can read till 255 bytes
+            try:
+                someNmeaData = str(self.i2c.readfrom(GPS_I2CADDR, 128))
+                #print(" feedMicroGPS_thread - gpsChars recieved : {}".format(len(someNmeaData)))
+                #print(" NMEA data: {}".format(str(someNmeaData)))
+
+                # Pass NMEA data to micropyGPS object
+                for x in someNmeaData:
+                    self.my_gps.update(str(x))
+                time.sleep(10)
+            except OSError as oserror:
+                print(oserror)
+            if self.my_gps.fix_stat:
+                rtc = RTC()
+                if not rtc.synced():
+                    gps_time = self.my_gps.timestamp
+                    gps_date = self.my_gps.date
+                    gps_year = 2000 + gps_date[2]
+                    gps_seconds = int(gps_time[2])
+                    #rtc.init((year, month, day[, hour[, minute[, second[, microsecond[, tzinfo]]]]]))
+                    rtc.init((gps_year, gps_date[1], gps_date[0], gps_time[0], gps_time[1], gps_seconds))
+                    self.log.debugLog("RTC: {}".format(rtc.now() if rtc.synced() else "unset"))
+            '''
+            #LOG:
+            self.log.gpsLog("##############################################################")
+            self.log.gpsLog("my_gps.parsed_sentences: {}".format(self.my_gps.parsed_sentences))
+            self.log.gpsLog("my_gps.clean_sentences: {}".format(self.my_gps.clean_sentences))
+            self.log.gpsLog("my_gps.crc_fails: {}".format(self.my_gps.crc_fails))
+            self.log.gpsLog("my_gps.date_string: {}".format(self.my_gps.date_string("long")))
+            self.log.gpsLog("my_gps.date_string: {}".format(self.my_gps.date_string()))
+            self.log.gpsLog("my_gps.date: {}".format(self.my_gps.date))
+            self.log.gpsLog("my_gps.timestamp: {}".format(self.my_gps.timestamp))
+            # Dilution of Precision (DOP) values close to 1.0 indicate excellent quality position data
+            self.log.gpsLog("my_gps.hdop: {}".format(self.my_gps.hdop))
+            self.log.gpsLog("my_gps.pdop: {}".format(self.my_gps.pdop))
+            self.log.gpsLog("my_gps.vdop: {}".format(self.my_gps.vdop))
+            self.log.gpsLog("my_gps.valid: {}".format(self.my_gps.valid))
+            self.log.gpsLog("my_gps.satellites_in_view: {}".format(self.my_gps.satellites_in_view))
+            self.log.gpsLog("my_gps.satellites_in_use: {}".format(self.my_gps.satellites_in_use))
+            self.log.gpsLog("my_gps.satellites_visible: {}".format(self.my_gps.satellites_visible()))
+            self.log.gpsLog("my_gps.satellite_data_updated: {}".format(self.my_gps.satellite_data_updated()))
+            self.log.gpsLog("my_gps.fix_stat: {}".format(self.my_gps.fix_stat))
+            # Fix types can be: 1 = no fix, 2 = 2D fix, 3 = 3D fix
+            self.log.gpsLog("my_gps.fix_type: {}".format(self.my_gps.fix_type))
+            self.log.gpsLog("my_gps.fix_time: {}".format(self.my_gps.fix_time))
+            #Returns number of millisecond since the last sentence with a valid fix was parsed. Returns 0 if no fix has been found
+            self.log.gpsLog("my_gps.time_since_fix: {}".format(self.my_gps.time_since_fix()))
+            self.log.gpsLog("my_gps.latitude_string: {}".format(self.my_gps.latitude_string()))
+            self.log.gpsLog("my_gps.longitude_string: {}".format(self.my_gps.longitude_string()))
+            self.log.gpsLog("my_gps._latitude: {}".format(self.my_gps._latitude))
+            self.log.gpsLog("my_gps._longitude: {}".format(self.my_gps._longitude))
+            self.log.gpsLog("my_gps.altitude: {}".format(self.my_gps.altitude))
+            self.log.gpsLog("my_gps.geoid_height: {}".format(self.my_gps.geoid_height))
+            self.log.gpsLog("my_gps.coord_format: {}".format(self.my_gps.coord_format))
+            self.log.gpsLog("my_gps.compass_direction: {}".format(self.my_gps.compass_direction()))
+            self.log.gpsLog("my_gps.speed_string: {}".format(self.my_gps.speed_string()))
+            self.log.gpsLog("my_gps.speed: {}".format(self.my_gps.speed))
+            self.log.gpsLog("my_gps.course: {}".format(self.my_gps.course))
+            self.log.gpsLog("Free Mem: {}".format(gc.mem_free()))
+            #PING:
+            try:
+                mqttLogic.pingMQTT()
+            except Exception as e:
+                print('GPS ping Exception: {}'.format(e))
+            '''
+            #PUB:
+            try:
+                year, month, day, hour, minute, second, weekday, yearday = time.localtime()
+                timestamp = str('{}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}Z'.format(year, month, day, hour, minute, second)) #"YYYY-MM-DDThh:mm:ssZ"
+            except Exception as e:
+                print('GPS timestamp Exception: {}'.format(e))
+            try:
+                lat = self.my_gps.latitude_string() #float
+                lon = self.my_gps.longitude_string() #float
+                alt = str(self.my_gps.altitude) #float
+                hdop = str(self.my_gps.hdop) #float
+                vdop = str(self.my_gps.vdop) #float
+                pdop = str(self.my_gps.pdop) #float
+            except Exception as e:
+                print('GPS location Exception: {}'.format(e))
+            try:
+                batteryLevel = str(self.py.read_battery_voltage())#integer
+            except Exception as e:
+                print('batteryLevel Exception: {}'.format(e))
+            try:
+                xt,yt,zt = self.acc.acceleration()
+                x = str(xt)
+                y = str(yt)
+                z = str(zt)
+                #print('x,y,z: {}, {}, {}'.format(x,y,z))
+                #accelerometer = str(self.acc.acceleration())
+                #print('accelerometer: {}'.format(accelerometer))
+            except Exception as e:
+                print('accelerometer Exception: {}'.format(e))
+            try:
+                statusMsg = '{"timestamp":"' + timestamp + '","location":{"lat":' + lat + ',"lon":' + lon + ',"alt":' + alt + ',"hdop":' + hdop + ',"vdop":' + vdop + ',"pdop":' + pdop + '},"batteryLevel":' + batteryLevel + ',"sensor":{"accelerometer":"' + x + ',' + y + ',' + z + '"}}'
+                #statusMsg = '{"timestamp":"{}","location":{"lat":{},"lon":{},"alt":{},"hdop":{},"vdop":{},"pdop":{}},"batteryLevel":{}}'.format(timestamp, lat, lon, alt, hdop, vdop, pdop, batteryLevel)
+                mqttLogic.pubMQTT(topic=config.MQTT_PUB_STATUS, msg=statusMsg, retain=False, qos=0)
+            except Exception as e:
+                print('GPS PUB Exception: {}'.format(e))            
             gc.collect()
             wdt.feed()
             time.sleep(config.MQTT_PUB_SR)

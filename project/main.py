@@ -63,7 +63,8 @@ if not state.CONNECTED:
     try:
         lte
     except NameError:
-        pass
+        #pass
+        machine.reset()
     else:
         nb.endLTE(lte)
     time.sleep(1)
@@ -109,7 +110,7 @@ else:
         # Start the L76micropyGPS object
         l76gps = L76micropyGPS(my_gps)
         # Start the GPS thread
-        gpsThread = l76gps.startGPSThread()
+        #gpsThread = l76gps.startGPSThread()
         log.debugLog('Aquiring GPS signal')
         # Start the Pub thread
         l76gps.startPubThread(mqttLogic)
