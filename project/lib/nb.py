@@ -12,6 +12,14 @@ import config
 #enable logger
 log = Logger()
 
+# Disable LTE modem
+def disableLTE(lte):
+    try:
+        lte.deinit(detach=True, reset=True)
+        log.bootLog('LTE disabled')
+    except Exception as lteError:
+        log.bootLog("lteError: {}".format(lteError))
+
 # Returns a network.LTE object with an active Internet connection.
 def getLTE(lte):
     # If already used, the lte device will have an active connection.
@@ -83,7 +91,13 @@ def send_at_cmd_pretty(lte, cmd):
 
 # Start LTE
 def startLTE():
-    lte = LTE()
+    try:
+        lte = LTE()
+    except Exception as lteError:
+        log.bootLog("lte = LTE(): {}".format(lteError))
+        state.CONNECTED = False
+        return lte
+
     # check for a valid iccid (exception is raised if no SIM card is connected)
     try:
         iccid = lte.iccid()
