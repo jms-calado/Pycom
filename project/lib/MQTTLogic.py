@@ -79,13 +79,18 @@ class MQTTLogic:
                 conn_result = self.client.connect(clean_session=False)
                 self.log.debugLog('conn_result: {}'.format(conn_result))
             except OSError as oserror:
-                if oserror.errno == errno.EHOSTUNREACH:
-                    # MQTT Connect Failed because Host is unreachable.
-                    self.log.debugLog('Exception MQTT Connect EHOSTUNREACH: {}'.format(oserror))
-                    state.MQTT_ACTIVE = False
-                    return state.MQTT_ACTIVE
-                else:
-                    self.log.debugLog('Exception MQTT Connect OSError: {}'.format(oserror))
+                try:
+                    if oserror.errno == errno.EHOSTUNREACH:
+                        # MQTT Connect Failed because Host is unreachable.
+                        self.log.debugLog('Exception MQTT Connect EHOSTUNREACH: {}'.format(oserror))
+                        state.MQTT_ACTIVE = False
+                        return state.MQTT_ACTIVE
+                    else:
+                        self.log.debugLog('Exception MQTT Connect OSError: {}'.format(oserror))
+                        state.MQTT_ACTIVE = False
+                        return state.MQTT_ACTIVE
+                except AttributeError as atterr:
+                    self.log.debugLog('Exception MQTT Connect AttributeError: {}'.format(atterr))
                     state.MQTT_ACTIVE = False
                     return state.MQTT_ACTIVE
             except Exception as mqttconnecterror:
