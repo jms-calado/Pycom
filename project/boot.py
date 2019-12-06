@@ -12,7 +12,7 @@ from LIS2HH12 import LIS2HH12
 
 start = utime.ticks_us()
 
-#enable logger
+# enable logger
 log = Logger()
 
 # enable GC
@@ -40,6 +40,15 @@ try:
     psleep_left_log = py.get_sleep_remaining()
 except Exception as i2c_error:
     print('I2C error: {}'.format(i2c_error))
+'''
+'''
+# Machine Reset Causes:
+# machine.PWRON_RESET,
+# machine.HARD_RESET,
+# machine.WDT_RESET,
+# machine.DEEPSLEEP_RESET,
+# machine.SOFT_RESET,
+# machine.BROWN_OUT_RESET
 '''
 mwake_log = machine.wake_reason()
 reset_log = machine.reset_cause()
@@ -69,8 +78,18 @@ if bootNum == None:
 pycom.nvs_set('bootNum', bootNum + 1)
 log.debugLog('bootNum: {}'.format(bootNum))
 
-#Disable WLAN
-import pycom
+# enable WDT on boot
+if not pycom.wdt_on_boot():
+    try:
+        pycom.wdt_on_boot(True)
+        pycom.wdt_on_boot_timeout(300000) # 5 minutes = 300000 ms
+        log.bootLog('WDT on boot enabled')
+    except Exception as wdtBootError:
+        log.bootLog("WDT on boot Error: {}".format(wdtBootError))
+else:
+    log.bootLog('WDT on boot enabled')
+
+# Disable WLAN
 if pycom.wifi_on_boot():
     try:
         wlan = WLAN()
@@ -82,7 +101,7 @@ if pycom.wifi_on_boot():
 else:
     log.bootLog('WLAN disabled')
 
-#Disable Server
+# Disable Server
 try:
     server = Server()
     if (server.isrunning()):
@@ -91,7 +110,7 @@ try:
 except Exception as serverError:
     log.bootLog("serverError: {}".format(serverError))
 
-#Disable BLE
+# Disable BLE
 try:
     bluetooth = Bluetooth()
     bluetooth.deinit()
@@ -99,7 +118,7 @@ try:
 except Exception as bluetoothError:
     log.bootLog("bluetoothError: {}".format(bluetoothError))
 '''
-#Disable LTE
+# Disable LTE
 try:
     lte = LTE()
     lte.deinit(detach=True, reset=True)
