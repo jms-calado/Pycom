@@ -78,7 +78,7 @@ class MicropyGPS(object):
 
         # Position/Motion
         self._latitude = [0, 0.0, 'N']
-        self._longitude = [0, 0.0, 'W']
+        self._longitude = [0, 0.0, 'E']
         self.coord_format = location_formatting
         self.speed = [0.0, 0.0, 0.0]
         self.course = 0.0
@@ -264,7 +264,7 @@ class MicropyGPS(object):
 
         else:  # Clear Position Data if Sentence is 'Invalid'
             self._latitude = [0, 0.0, 'N']
-            self._longitude = [0, 0.0, 'W']
+            self._longitude = [0, 0.0, 'E']
             self.speed = [0.0, 0.0, 0.0]
             self.course = 0.0
             self.valid = False
@@ -325,7 +325,7 @@ class MicropyGPS(object):
 
         else:  # Clear Position Data if Sentence is 'Invalid'
             self._latitude = [0, 0.0, 'N']
-            self._longitude = [0, 0.0, 'W']
+            self._longitude = [0, 0.0, 'E']
             self.valid = False
 
         return True
@@ -720,7 +720,7 @@ class MicropyGPS(object):
         if self.coord_format == 'dd':
             formatted_longitude = self.longitude
             #lon_string = str(formatted_longitude[0]) + '° ' + str(self._longitude[2])
-            lon_string = "{}".format("" if self._longitude[2] == "W" else "-") + str(formatted_longitude[0])
+            lon_string = "{}".format("" if formatted_longitude[1] == "E" else "-") + str(formatted_longitude[0])
         elif self.coord_format == 'dms':
             formatted_longitude = self.longitude
             lon_string = str(formatted_longitude[0]) + '° ' + str(formatted_longitude[1]) + "' " + str(formatted_longitude[2]) + '" ' + str(formatted_longitude[3])
