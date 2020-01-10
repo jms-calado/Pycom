@@ -9,6 +9,7 @@ from network import WLAN, Server, Bluetooth, LTE
 from logger import Logger
 from pytrack import Pytrack
 from LIS2HH12 import LIS2HH12
+import state
 
 start = utime.ticks_us()
 
@@ -59,10 +60,10 @@ try:
     sd = SD()
     os.mount(sd, '/sd')
 except Exception as sdError:
-    print("sdError: {}".format(sdError))
-    log.active = False
+    print("SD mount Error: {}".format(sdError))
+    state.LOGGER_ACTIVE = False
 else:
-    log.active = True
+    state.LOGGER_ACTIVE = True
     log.bootLog('New boot')
     log.bootLog('Wakeup reason (machine): {} / Reset reason: {} / Remaining sleep time {}'.format(mwake_log, reset_log, mrst_log))
     log.bootLog('Wakeup reason (pycoproc): {} / Aproximate sleep remaining: {}  sec'.format(pwake_log, psleep_left_log))
@@ -117,7 +118,7 @@ try:
     log.bootLog('Bluetooth disabled')
 except Exception as bluetoothError:
     log.bootLog("bluetoothError: {}".format(bluetoothError))
-'''
+
 # Disable LTE
 try:
     lte = LTE()
@@ -125,7 +126,7 @@ try:
     log.bootLog('LTE disabled')
 except Exception as lteError:
     log.bootLog("lteError: {}".format(lteError))
-'''
+
 gc.collect()
 
 machine.main('main.py')
