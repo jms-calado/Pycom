@@ -166,7 +166,7 @@ else:
             if config.MQTT_PUB_SR is not config.WIFI_SR:
                 log.debugLog('config.MQTT_PUB_SR: {} is not config.WIFI_SR: {}'.format(config.MQTT_PUB_SR, config.WIFI_SR))
                 config.MQTT_PUB_SR = config.WIFI_SR
-        time.sleep(10)
+        time.sleep(20)
 
     pycom.rgbled(0x7f0000) # red led
 

@@ -97,7 +97,7 @@ def startLTE():
         log.bootLog("lte = LTE(): {}".format(lteError))
         state.CONNECTED = False
         return lte
-
+    '''
     # check for a valid iccid (exception is raised if no SIM card is connected)
     try:
         iccid = lte.iccid()
@@ -121,6 +121,7 @@ def startLTE():
         log.debugLog("LTE iccid error: {}".format(e))
         #state.CONNECTED = False
         #return lte
+    '''
     try:
         # has coverage:
         lte_coverage = lte.ue_coverage()
