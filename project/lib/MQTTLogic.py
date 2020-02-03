@@ -2,14 +2,15 @@ import _thread
 import time
 import utime
 import gc
-import config
-import state
 import os
 import pycom
 import ujson as json
 from machine import Timer
 from umqttrobust import MQTTClient
 from logger import Logger
+import config
+import state
+import wifi
 
 
 class MQTTLogic:
@@ -49,6 +50,8 @@ class MQTTLogic:
                 config.LTENB_SR = json_obj['lteNB']['sr']
                 state.WIFI_ACTIVE = json_obj['wifi']['active']
                 config.WIFI_SR = json_obj['wifi']['sr']
+                state.LORA_ACTIVE = json_obj['lora']['active']
+                config.LORA_SR = json_obj['lora']['sr']
             except KeyError as keyerror:
                 self.log.debugLog('Exception MQTT json keyerror: {}'.format(keyerror))
         elif topic == config.MQTT_SUB_CONF_WIFI.encode():
@@ -160,7 +163,8 @@ class MQTTLogic:
             self.thread_active = False
             _thread.exit()
         except SystemExit as sysexiterror:
-            self.log.debugLog('System Exit Error: {}'.format(sysexiterror))
+            self.log.debugLog('System Exit: {}'.format(sysexiterror))
+            self.log.debugLog('Exited mqtt_thread id: {}'.format(_thread.get_ident()))
         time.sleep(1)
         '''
         if not self.thread_active:
@@ -193,16 +197,28 @@ class MQTTLogic:
             except Exception as e:
                 self.log.debugLog(e)
             try:
-                res = self.client.check_msg()
+                res = self.client.wait_msg()
                 if(res == b"PINGRESP") :
                     self.log.debugLog('Ping Successful')
+                else:
+                    self.log.debugLog('Ping response: {}'.format(res))
             except Exception as e:
                 self.log.debugLog(e)
 
-    def pubStatus(self, timestamp, lat='0', lon='0', alt='0', hdop='0', vdop='0', pdop='0', batteryLevel='0', x='0', y='0', z='0'):
+    def pubStatus(self, timestamp='1970-01-01T00:00:00Z', lat='0', lon='0', alt='0', hdop='0', vdop='0', pdop='0', batteryLevel='0', x='0', y='0', z='0'):
         try:
             statusMsg = '{"timestamp":"' + timestamp + '","location":{"lat":' + lat + ',"lon":' + lon + ',"alt":' + alt + ',"hdop":' + hdop + ',"vdop":' + vdop + ',"pdop":' + pdop + '},"batteryLevel":' + batteryLevel + ',"sensor":{"accelerometer":"' + x + ',' + y + ',' + z + '"}}'
             #statusMsg = '{"timestamp":"{}","location":{"lat":{},"lon":{},"alt":{},"hdop":{},"vdop":{},"pdop":{}},"batteryLevel":{}}'.format(timestamp, lat, lon, alt, hdop, vdop, pdop, batteryLevel)
-            self.pubMQTT(topic=config.MQTT_PUB_STATUS, msg=statusMsg, retain=False, qos=0)
+            if state.WIFI_ACTIVE:
+                wifiAPs = None
+                #check if there is wifi
+                wifiAPs = wifi.wifiAPs()
+                if wifiAPs is not None:
+                    statusAPs = '{"timestamp":"' + timestamp + '","location":{"lat":' + lat + ',"lon":' + lon + ',"alt":' + alt + ',"hdop":' + hdop + ',"vdop":' + vdop + ',"pdop":' + pdop + '},"batteryLevel":' + batteryLevel + ',"sensor":{"accelerometer":"' + x + ',' + y + ',' + z + '"},' + wifiAPs + '}'
+                    self.pubMQTT(topic=config.MQTT_PUB_STATUS_WIFIAPS, msg=statusAPs, retain=False, qos=0)
+                else:
+                    self.pubMQTT(topic=config.MQTT_PUB_STATUS, msg=statusMsg, retain=False, qos=0)
+            else:
+                self.pubMQTT(topic=config.MQTT_PUB_STATUS, msg=statusMsg, retain=False, qos=0)
         except Exception as e:
-            print('Status PUB Exception: {}'.format(e))
+            self.log.debugLog('Status PUB Exception: {}'.format(e))

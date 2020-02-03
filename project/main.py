@@ -14,6 +14,7 @@ from L76micropyGPS import L76micropyGPS
 from micropyGPS import MicropyGPS
 from MQTTLogic import MQTTLogic
 from logger import Logger
+from loraLib import Loralib
 import config
 import state
 import nb
@@ -50,57 +51,87 @@ if active is not None:
 # LTE
 if state.LTENB_ACTIVE:
     lte = nb.startLTE()
-
+'''
 # WiFi
 if state.WIFI_ACTIVE:
     wlan = wifi.connectWifi()
-
+'''
+loralib = None
+'''
+# LoRa
+if state.LORA_ACTIVE:
+    loralib = Loralib()
+    
+    if loralib.lora is not None:
+        loralib.loraLogic("2019-12-12T08:32:58Z","1.000000,0.000000,0.000000,0.000000,0.000000,0.000000","3.311792","0.442749,0.1876221,0.8468018")
+    else:
+        #handle lora=None failure
+        pass
+'''
 # Set RTC
 rtc = RTC()
 
 # If not connected, disable LTE and sleep for 2 hours
 if not state.CONNECTED:
-    try:
-        lte
-    except NameError:
-        #pass
-        machine.reset()
-    else:
-        nb.endLTE(lte)
-    time.sleep(1)
-    machine.deepsleep(10000) # 2 hours = 7200000
-# If connected, set: RTC; MQTT connection; GNSS. Start Normal Op Mode
-else:
-    pycom.rgbled(0xff) # dark blue led
-    #log.debugLog("Initial RTC: {}".format("set" if rtc.synced() else "unset"))
-    if not rtc.synced():
-        import rtcLib
-        rtc = rtcLib.getRTC(rtc)
-        log.debugLog("RTC: {}".format(rtc.now() if rtc.synced() else "unset"))
-
-    pycom.rgbled(0xff00) # green led
-
-    # MQTT connect
-    mqttLogic = MQTTLogic()
-    activewait = False
-    for counter in range(3): # repeat startMQTT at most 3 times
-        mqttactive = mqttLogic.startMQTT()
-        if mqttactive:
-            break
+    # If not LoRa is not used
+    if not state.LORA_ACTIVE:
+        try:
+            lte
+        except NameError:
+            #pass
+            machine.reset()
         else:
-            time.sleep(30)
-    if not state.OP_MODE:
-        activewait = True
-        log.debugLog("Awaiting Activation")
-    while not state.OP_MODE:
-        time.sleep(30)
-    if state.OP_MODE and activewait:
-        log.debugLog("Activated. Stoping mqtt thread.")
-        mqttLogic.stopMQTT()
+            nb.endLTE(lte)
         time.sleep(1)
-    log.debugLog("Resuming Normal Operation Mode")
+        machine.deepsleep(config.DEEP_SLEEP)
+    # If LoRa is used and OP_MODE == True (MQTT Active)
+    elif state.OP_MODE:
+        nb.endLTE(lte)
+        loralib = Loralib()        
+        if loralib.lora is not None and state.LORA_CONNECTED:
+            state.CONNECTED = True
+        else:
+            time.sleep(1)
+            machine.deepsleep(config.DEEP_SLEEP)
+    else:
+        time.sleep(1)
+        machine.deepsleep(config.DEEP_SLEEP)
 
-    log.debugLog("Free Mem: {}".format(gc.mem_free()))
+# If connected, set: RTC; MQTT connection; GNSS. Start Normal Op Mode
+if state.CONNECTED:
+    mqttLogic = None
+    # If not LoRa is not used
+    if not state.LORA_CONNECTED:
+        # RTC
+        pycom.rgbled(0xff) # dark blue led
+        #log.debugLog("Initial RTC: {}".format("set" if rtc.synced() else "unset"))
+        if not rtc.synced():
+            import rtcLib
+            rtc = rtcLib.getRTC(rtc)
+            log.debugLog("RTC: {}".format(rtc.now() if rtc.synced() else "unset"))
+
+        # MQTT connect
+        pycom.rgbled(0xff00) # green led
+        mqttLogic = MQTTLogic()
+        activewait = False
+        for counter in range(3): # repeat startMQTT at most 3 times
+            mqttactive = mqttLogic.startMQTT()
+            if mqttactive:
+                break
+            else:
+                time.sleep(30)
+        if not state.OP_MODE:
+            activewait = True
+            log.debugLog("Awaiting Activation")
+        while not state.OP_MODE:
+            time.sleep(30)
+        if state.OP_MODE and activewait:
+            log.debugLog("Activated. Stoping mqtt thread.")
+            mqttLogic.stopMQTT()
+            time.sleep(1)
+        log.debugLog("Resuming Normal Operation Mode")
+
+        log.debugLog("Free Mem: {}".format(gc.mem_free()))
 
     pycom.rgbled(0x00ffff) # light blue led
 
@@ -113,7 +144,7 @@ else:
         #gpsThread = l76gps.startGPSThread()
         log.debugLog('Aquiring GPS signal')
         # Start the Pub thread
-        l76gps.startPubThread(mqttLogic)
+        l76gps.startPubThread(mqttLogic, loralib)
         pycom.rgbled(0x000000) # off led
         pycom.heartbeat(True)
     '''
@@ -126,6 +157,7 @@ else:
     # STATE MACHINE LOOP:
     last_state_gnss = state.GNSS_ACTIVE
     last_state_ltenb = state.LTENB_ACTIVE
+    last_state_lora = state.LORA_ACTIVE
     last_state_wifi = state.WIFI_ACTIVE
     last_state_mqtt = state.MQTT_ACTIVE
     last_config_gnss_sr = config.GNSS_SR
@@ -134,21 +166,22 @@ else:
             log.debugLog('last_state_gnss: {} is not state.GNSS_ACTIVE: {}'.format(last_state_gnss, state.GNSS_ACTIVE))
             if state.GNSS_ACTIVE:
                 # Start the GPS thread
-                gpsThread = l76gps.startGPSThread()
+                #gpsThread = l76gps.startGPSThread()
                 log.debugLog('Aquiring GPS signal')
                 # Start the Pub thread
-                l76gps.startPubThread(mqttLogic)
+                l76gps.startPubThread(mqttLogic, loralib)
             else:
                 l76gps.stopPubThread()
                 time.sleep(1)
-                l76gps.stopGPSThread()
-                time.sleep(1)
+                #l76gps.stopGPSThread()
+                #time.sleep(1)
         if last_state_ltenb is not state.LTENB_ACTIVE:
             log.debugLog('last_state_ltenb: {} is not state.LTENB_ACTIVE: {}'.format(last_state_ltenb, state.LTENB_ACTIVE))
             if state.LTENB_ACTIVE:
                 lte = nb.startLTE()
             else:
                 nb.endLTE(lte)
+        '''
         if last_state_wifi is not state.WIFI_ACTIVE:
             log.debugLog('last_state_wifi: {} is not state.WIFI_ACTIVE: {}'.format(last_state_wifi, state.WIFI_ACTIVE))
             if state.WIFI_ACTIVE:
@@ -158,15 +191,22 @@ else:
         if last_config_gnss_sr is not config.GNSS_SR:
             log.debugLog('last_config_gnss_sr: {} is not config.GNSS_SR: {}'.format(last_config_gnss_sr, config.GNSS_SR))
             pass #TO-DO: define function to change GNSS sample rate
+        '''
         if state.LTENB_ACTIVE:
             if config.MQTT_PUB_SR is not config.LTENB_SR:
                 log.debugLog('config.MQTT_PUB_SR: {} is not config.LTENB_SR: {}'.format(config.MQTT_PUB_SR, config.LTENB_SR))
                 config.MQTT_PUB_SR = config.LTENB_SR
+        elif state.LORA_ACTIVE:
+            if config.MQTT_PUB_SR is not config.LORA_SR:
+                log.debugLog('config.MQTT_PUB_SR: {} is not config.LORA_SR: {}'.format(config.MQTT_PUB_SR, config.LORA_SR))
+                config.MQTT_PUB_SR = config.LORA_SR
+        '''
         if state.WIFI_ACTIVE:
             if config.MQTT_PUB_SR is not config.WIFI_SR:
                 log.debugLog('config.MQTT_PUB_SR: {} is not config.WIFI_SR: {}'.format(config.MQTT_PUB_SR, config.WIFI_SR))
                 config.MQTT_PUB_SR = config.WIFI_SR
-        time.sleep(20)
+        '''
+        time.sleep(40)
 
     pycom.rgbled(0x7f0000) # red led
 

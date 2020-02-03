@@ -6,6 +6,7 @@ import config
 import state
 from machine import RTC, WDT
 from MQTTLogic import MQTTLogic
+from loraLib import Loralib
 from logger import Logger
 
 # http://www.gpsinformation.org/dale/nmea.htm#GGA
@@ -62,18 +63,18 @@ class L76micropyGPS:
         try:
             self.py = Pytrack(i2c=self.i2c)
         except OSError as oserror:
-            print('OSError_1: {}'.format(oserror))
+            self.log.debugLog('OSError_1: {}'.format(oserror))
         except Exception as i2cerror:
-            print('i2cerror1: {}'.format(i2cerror))
+            self.log.debugLog('i2cerror1: {}'.format(i2cerror))
 
         #enable accelerometer data
         from LIS2HH12 import LIS2HH12
         try:
             self.acc = LIS2HH12(pysense=self.py)
         except OSError as oserror:
-            print('OSError_2: {}'.format(oserror))
+            self.log.debugLog('OSError_2: {}'.format(oserror))
         except Exception as i2cerror:
-            print('i2cerror2: {}'.format(i2cerror))
+            self.log.debugLog('i2cerror2: {}'.format(i2cerror))
 
     def startGPSThread(self):
         # start thread feeding microGPS
@@ -81,7 +82,7 @@ class L76micropyGPS:
         self.gps_thread = _thread.start_new_thread(self.feedMicroGPS,())
 
     def feedMicroGPS(self):
-        print('Running feedMicroGPS_thread id: {}'.format(_thread.get_ident()))
+        self.log.debugLog('Running feedMicroGPS_thread id: {}'.format(_thread.get_ident()))
         someNmeaData = ''
         while self.runGpsThread:
             gc.collect()
@@ -89,20 +90,20 @@ class L76micropyGPS:
             #I2C L76 says it can read till 255 bytes
             try:
                 someNmeaData = str(self.i2c.readfrom(GPS_I2CADDR, 128))
-                #print(" feedMicroGPS_thread - gpsChars recieved : {}".format(len(someNmeaData)))
-                #print(" NMEA data: {}".format(str(someNmeaData)))
+                #self.log.debugLog(" feedMicroGPS_thread - gpsChars recieved : {}".format(len(someNmeaData)))
+                #self.log.debugLog(" NMEA data: {}".format(str(someNmeaData)))
 
                 # Pass NMEA data to micropyGPS object
                 for x in someNmeaData:
                     self.my_gps.update(str(x))
                 time.sleep(10)
             except OSError as oserror:
-                print(oserror)
+                self.log.debugLog(oserror)
         if not self.runGpsThread:
             try:
                 _thread.exit()
             except SystemExit as sysexiterror:
-                print('System Exit Error feedMicroGPS: {}'.format(sysexiterror))
+                self.log.debugLog('System Exit Error feedMicroGPS: {}'.format(sysexiterror))
 
     def standbyGPS(self):
         #enter standby mode for power saving
@@ -130,14 +131,15 @@ class L76micropyGPS:
     def stopGPSThread(self):
         self.runGpsThread = False
 
-    def startPubThread(self, mqttLogic):
+    def startPubThread(self, mqttLogic, loralib):
         # start thread feeding mqtt Pub Gps
         self.runPubThread = True
-        wdt = WDT(timeout=120000)  # enable it with a timeout of 2 minutes
-        self.pub_thread = _thread.start_new_thread(self.mqttPubGps,[mqttLogic, wdt])
+        #wdt = WDT(timeout=120000)  # enable it with a timeout of 2 minutes
+        wdt = WDT(timeout=2500*config.MQTT_PUB_SR)  # enable it with a timeout of 2 minutes
+        self.pub_thread = _thread.start_new_thread(self.mqttPubGps,[mqttLogic, loralib, wdt])
 
-    def mqttPubGps(self, mqttLogic, wdt):
-        print('Running mqttPubGps_thread id: {}'.format(_thread.get_ident()))
+    def mqttPubGps(self, mqttLogic, loralib, wdt):
+        self.log.debugLog('Running mqttPubGps_thread id: {}'.format(_thread.get_ident()))
         someNmeaData = ''
         while self.runPubThread:
             gc.collect()
@@ -145,15 +147,15 @@ class L76micropyGPS:
             #I2C L76 says it can read till 255 bytes
             try:
                 someNmeaData = str(self.i2c.readfrom(GPS_I2CADDR, 128))
-                #print(" feedMicroGPS_thread - gpsChars recieved : {}".format(len(someNmeaData)))
-                #print(" NMEA data: {}".format(str(someNmeaData)))
+                #self.log.debugLog(" feedMicroGPS_thread - gpsChars recieved : {}".format(len(someNmeaData)))
+                #self.log.debugLog(" NMEA data: {}".format(str(someNmeaData)))
 
                 # Pass NMEA data to micropyGPS object
                 for x in someNmeaData:
                     self.my_gps.update(str(x))
-                time.sleep(10)
+                time.sleep(1)
             except OSError as oserror:
-                print(oserror)
+                self.log.debugLog(oserror)
             if self.my_gps.fix_stat:
                 rtc = RTC()
                 if not rtc.synced():
@@ -205,14 +207,14 @@ class L76micropyGPS:
             try:
                 mqttLogic.pingMQTT()
             except Exception as e:
-                print('GPS ping Exception: {}'.format(e))
+                self.log.debugLog('GPS ping Exception: {}'.format(e))
             '''
             #PUB:
             try:
                 year, month, day, hour, minute, second, weekday, yearday = time.localtime()
                 timestamp = str('{}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}Z'.format(year, month, day, hour, minute, second)) #"YYYY-MM-DDThh:mm:ssZ"
             except Exception as e:
-                print('GPS timestamp Exception: {}'.format(e))
+                self.log.debugLog('GPS timestamp Exception: {}'.format(e))
             try:
                 lat = self.my_gps.latitude_string() #float
                 lon = self.my_gps.longitude_string() #float
@@ -221,27 +223,44 @@ class L76micropyGPS:
                 vdop = str(self.my_gps.vdop) #float
                 pdop = str(self.my_gps.pdop) #float
             except Exception as e:
-                print('GPS location Exception: {}'.format(e))
+                self.log.debugLog('GPS location Exception: {}'.format(e))
             try:
                 batteryLevel = str(self.py.read_battery_voltage())#integer
             except Exception as e:
-                print('batteryLevel Exception: {}'.format(e))
+                self.log.debugLog('batteryLevel Exception: {}'.format(e))
             try:
                 xt,yt,zt = self.acc.acceleration()
                 x = str(xt)
                 y = str(yt)
                 z = str(zt)
-                #print('x,y,z: {}, {}, {}'.format(x,y,z))
+                #self.log.debugLog('x,y,z: {}, {}, {}'.format(x,y,z))
                 #accelerometer = str(self.acc.acceleration())
-                #print('accelerometer: {}'.format(accelerometer))
+                #self.log.debugLog('accelerometer: {}'.format(accelerometer))
             except Exception as e:
-                print('accelerometer Exception: {}'.format(e))
-            try:
-                statusMsg = '{"timestamp":"' + timestamp + '","location":{"lat":' + lat + ',"lon":' + lon + ',"alt":' + alt + ',"hdop":' + hdop + ',"vdop":' + vdop + ',"pdop":' + pdop + '},"batteryLevel":' + batteryLevel + ',"sensor":{"accelerometer":"' + x + ',' + y + ',' + z + '"}}'
-                #statusMsg = '{"timestamp":"{}","location":{"lat":{},"lon":{},"alt":{},"hdop":{},"vdop":{},"pdop":{}},"batteryLevel":{}}'.format(timestamp, lat, lon, alt, hdop, vdop, pdop, batteryLevel)
-                mqttLogic.pubMQTT(topic=config.MQTT_PUB_STATUS, msg=statusMsg, retain=False, qos=0)
-            except Exception as e:
-                print('GPS PUB Exception: {}'.format(e))            
+                self.log.debugLog('accelerometer Exception: {}'.format(e))
+            
+            if mqttLogic is not None:
+                '''
+                try:
+                    statusMsg = '{"timestamp":"' + timestamp + '","location":{"lat":' + lat + ',"lon":' + lon + ',"alt":' + alt + ',"hdop":' + hdop + ',"vdop":' + vdop + ',"pdop":' + pdop + '},"batteryLevel":' + batteryLevel + ',"sensor":{"accelerometer":"' + x + ',' + y + ',' + z + '"}}'
+                    #statusMsg = '{"timestamp":"{}","location":{"lat":{},"lon":{},"alt":{},"hdop":{},"vdop":{},"pdop":{}},"batteryLevel":{}}'.format(timestamp, lat, lon, alt, hdop, vdop, pdop, batteryLevel)
+                    mqttLogic.pubMQTT(topic=config.MQTT_PUB_STATUS, msg=statusMsg, retain=False, qos=0)
+                except Exception as e:
+                    self.log.debugLog('GPS PUB Exception: {}'.format(e))
+                '''
+                try:
+                    mqttLogic.pubStatus(timestamp, lat, lon, alt, hdop, vdop, pdop, batteryLevel, x, y, z)
+                except Exception as e:
+                    self.log.debugLog('GPS MQTT PUB Exception: {}'.format(e))
+            if loralib is not None:
+                try:
+                    recv_msg = None
+                    recv_msg = loralib.loraLogic(timestamp, lat, lon, alt, hdop, vdop, pdop, batteryLevel, x, y, z)
+                    if recv_msg is not None:
+                        loralib.processRecvMsg(recv_msg)
+                except Exception as e:
+                    self.log.debugLog('GPS LoRA PUB Exception: {}'.format(e))
+
             gc.collect()
             wdt.feed()
             time.sleep(config.MQTT_PUB_SR)
@@ -249,7 +268,8 @@ class L76micropyGPS:
             try:
                 _thread.exit()
             except SystemExit as sysexiterror:
-                print('System Exit Error mqttPubGps: {}'.format(sysexiterror))
+                self.log.debugLog('System Exit mqttPubGps: {}'.format(sysexiterror))
+                self.log.debugLog('Exited mqttPubGps_thread id: {}'.format(_thread.get_ident()))
 
     def stopPubThread(self):
         self.runPubThread = False
