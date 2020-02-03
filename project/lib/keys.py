@@ -1,7 +1,7 @@
 import binascii
 
 #DeviceId
-DEVICE_ID = "DEVICE_ID"
+DEVICE_ID = "ABxy"
 
 MQTT_USER_ID = "MQTT_USER_ID"
 MQTT_PWD = "MQTT_PWD"
