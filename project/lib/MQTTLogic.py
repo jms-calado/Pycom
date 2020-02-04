@@ -207,14 +207,14 @@ class MQTTLogic:
 
     def pubStatus(self, timestamp='1970-01-01T00:00:00Z', lat='0', lon='0', alt='0', hdop='0', vdop='0', pdop='0', batteryLevel='0', x='0', y='0', z='0'):
         try:
-            statusMsg = '{"timestamp":"' + timestamp + '","location":{"lat":' + lat + ',"lon":' + lon + ',"alt":' + alt + ',"hdop":' + hdop + ',"vdop":' + vdop + ',"pdop":' + pdop + '},"batteryLevel":' + batteryLevel + ',"sensor":{"accelerometer":"' + x + ',' + y + ',' + z + '"}}'
+            statusMsg = '{"timestamp":"' + timestamp + '","location":{"lat":' + lat + ',"lon":' + lon + ',"alt":' + alt + ',"hdop":' + hdop + ',"vdop":' + vdop + ',"pdop":' + pdop + '},"batteryLevel":' + batteryLevel + ',"sensor":{"accelerometer":{"x":' + x + ',"y":' + y + ',"z":' + z + '}}}'
             #statusMsg = '{"timestamp":"{}","location":{"lat":{},"lon":{},"alt":{},"hdop":{},"vdop":{},"pdop":{}},"batteryLevel":{}}'.format(timestamp, lat, lon, alt, hdop, vdop, pdop, batteryLevel)
             if state.WIFI_ACTIVE:
                 wifiAPs = None
                 #check if there is wifi
                 wifiAPs = wifi.wifiAPs()
                 if wifiAPs is not None:
-                    statusAPs = '{"timestamp":"' + timestamp + '","location":{"lat":' + lat + ',"lon":' + lon + ',"alt":' + alt + ',"hdop":' + hdop + ',"vdop":' + vdop + ',"pdop":' + pdop + '},"batteryLevel":' + batteryLevel + ',"sensor":{"accelerometer":"' + x + ',' + y + ',' + z + '"},' + wifiAPs + '}'
+                    statusAPs = '{"timestamp":"' + timestamp + '","location":{"lat":' + lat + ',"lon":' + lon + ',"alt":' + alt + ',"hdop":' + hdop + ',"vdop":' + vdop + ',"pdop":' + pdop + '},"batteryLevel":' + batteryLevel + ',"sensor":{"accelerometer":{"x":' + x + ',"y":' + y + ',"z":' + z + '}},' + wifiAPs + '}'
                     self.pubMQTT(topic=config.MQTT_PUB_STATUS_WIFIAPS, msg=statusAPs, retain=False, qos=0)
                 else:
                     self.pubMQTT(topic=config.MQTT_PUB_STATUS, msg=statusMsg, retain=False, qos=0)
