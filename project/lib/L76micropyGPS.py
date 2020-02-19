@@ -131,7 +131,7 @@ class L76micropyGPS:
     def stopGPSThread(self):
         self.runGpsThread = False
 
-    def startPubThread(self, mqttLogic, loralib):
+    def startPubThread(self, mqttLogic = None, loralib = None):
         # start thread feeding mqtt Pub Gps
         self.runPubThread = True
         #wdt = WDT(timeout=120000)  # enable it with a timeout of 2 minutes

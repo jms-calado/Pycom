@@ -6,6 +6,7 @@ import binascii
 import struct
 import time
 import ujson as json
+import machine
 import wifi
 import config
 import state
@@ -24,52 +25,64 @@ class Loralib:
         self.log = Logger()
         self.lora = None
         self.s = None
+        self.lora_ping = True
         try: # Initialize LoRa in LORAWAN mode.This class provides a LoRaWAN 1.0.2
             self.lora = LoRa(mode=LoRa.LORAWAN,device_class=LoRa.CLASS_C,adr=True)
+        except Exception as e1:
+            self.lora = None
+            self.log.debugLog("initLoRa Failed")
+        '''
+        try:
+            self.log.debugLog("LoRa init: Trying lora.nvram_restore")
+            self.lora.nvram_restore()           
+        except Exception as e:
+            self.log.debugLog("lora.nvram_restore Failed: {}".format(e))
+        '''
+        if not self.lora.has_joined():                
+            self.log.debugLog("LoRa init: Not joined yet.")
             try:
                                 # set the  default channels to the same frequency
                 self.lora.add_channel(0, frequency=868100000, dr_min=0, dr_max=5)
                 self.lora.add_channel(1, frequency=868100000, dr_min=0, dr_max=5)
                 self.lora.add_channel(2, frequency=868100000, dr_min=0, dr_max=5)
                 self.lora.add_channel(3, frequency=868300000, dr_min=0, dr_max=5)
-
-                for c in range(4, 16):
-                    self.lora.remove_channel(c)
-
-                    try:
-                        # join a network using OTAA
-                        self.lora.join(activation=self.lora.OTAA, auth=(self.OTAAauth()), timeout=0)
-                        # wait until the module has joined the network max time 100 sec
-                        i=0
-                        while not self.lora.has_joined():
-                            time.sleep(4)
-                            i += 1
-                            print("Not joined yet...",i)
-                            if(i>=10):
-                                time.sleep(2)
-                            if(i==20):
-                                raise Exception("Failed to join LoRa Network")
-
-                        self.s = self.createSocket()
-                        if self.s is not None:
-                            #state.CONNECTED = True
-                            state.LORA_CONNECTED = True
-                        break
-						
-                    except Exception as e3:
-                        self.lora = None
-                        self.log.debugLog("{}".format(e3))
-            except Exception as e2:
+            except Exception as e:
                 self.lora = None
-                self.log.debugLog("prepare_channels Failed")
+                self.log.debugLog("prepare_channels Failed: {}".format(e))
                 #In case of failure prepare the channels again
                 #self.lora.add_channel(0, frequency=868100000, dr_min=0, dr_max=5)
                 #self.lora.add_channel(1, frequency=868100000, dr_min=0, dr_max=5)
-                #self.lora.add_channel(2, frequency=868300000, dr_min=0, dr_max=5)
-        except Exception as e1:
-            self.lora = None
-            self.log.debugLog("initLoRa Failed")
-            #In case of failure run
+                    #self.lora.add_channel(2, frequency=868300000, dr_min=0, dr_max=5)
+            try:
+                for c in range(4, 16):
+                    self.lora.remove_channel(c)
+                    # join a network using OTAA
+                    self.lora.join(activation=self.lora.OTAA, auth=(self.OTAAauth()), timeout=0)           
+                    self.log.debugLog("LoRa init: Joining...")
+                    # wait until the module has joined the network max time 100 sec
+                    i=0
+                    while not self.lora.has_joined():
+                        time.sleep(4)
+                        i += 1
+                        print("Not joined yet...",i)
+                        if(i>=10):
+                            time.sleep(2)
+                        if(i==20):
+                            raise Exception("Failed to join LoRa Network")
+                    break						
+            except Exception as e:
+                self.lora = None
+                self.log.debugLog("LoRa join Failed: {}".format(e))
+        if self.lora.has_joined():           
+            self.log.debugLog("LoRa init: Joined.")
+            try:
+                self.s = self.createSocket()
+                if self.s is not None:
+                    #state.CONNECTED = True
+                    state.LORA_CONNECTED = True
+            except Exception as e:
+                self.lora = None
+                self.log.debugLog("createSocket Failed: {}".format(e))
 
     """
     OTAAauth :
@@ -139,41 +152,60 @@ class Loralib:
                 pkt_status = bytes(wifiAPs) + "," + timestamp + "," + location + "," + batteryLevel + "," + accelerometer
             else:
                 pkt_status = timestamp + "," + location + "," + batteryLevel + "," + accelerometer
-
             '''
             Transmit the packet
             '''
             self.s.send(pkt_status)
-            print('Sending:', pkt_status)
+            self.log.debugLog('LoRa Uplink: {}'.format(pkt_status))
             time.sleep(1)
-
-            #pkt = b'PKT #' + bytes([i])
-            #print(lora.stats())
-            #(rx_timestamp=127533922, rssi=-42, snr=8.0, sfrx=3, sftx=5, tx_trials=0, tx_power=0, tx_time_on_air=241, tx_counter=14,tx_frequency=0)
-            #can be used for debug
-
+            # save lora state
+            #self.lora.nvram_save()
+            '''
+            Check msg counter
+            '''
+            try:
+                stats = self.lora.stats()
+                self.log.debugLog("LoRa stats: {}".format(stats))
+                counter = stats.tx_counter
+                if (counter % 10) == 0:
+                    if self.lora_ping is True:
+                        self.lora_ping = False
+                    else:
+                        self.log.debugLog("Lora ping timeout... going to sleep.")
+                        time.sleep(1)
+                        machine.deepsleep(config.DEEP_SLEEP)
+            except Exception as e:
+                self.log.debugLog("lora.stats Failed: {}".format(e))
             '''
             Receive a packet
             '''
             rx = None
             try:
-                rx = str(self.s.recv(256), 'uft-8')
-            except OSError as scktError:
-                self.log.debugLog('Exception loraLib s.recv: {}'.format(scktError))
-                rx = None
+                rxb = self.s.recv(500)
+                rx = rxb.decode('uft-8')
+                #rx = str(rxb,'uft-8')
             except Exception as error:
                 self.log.debugLog('Exception loraLib s.recv: {}'.format(error))
                 rx = None
             #weird way to check if message was received (aka rx = (null))
             if '{}'.format(rx) is '(null)':
                 rx = None 
-            #print(rx)
-            #time.sleep(5)
+            if '{}'.format(rx) is '':
+                rx = None 
+            if '{}'.format(rx) is 'ping':
+                self.log.debugLog('LoRa ping received')
+                self.lora_ping = True
+                rx = None
+
+            # return received msg
             return rx
         else:
             return None
 
     '''
+    processRecvMsg:
+        input: msg as string with json object containing the topic and payload
+        processes the msg according to the topic and payload
     '''
     def processRecvMsg(self, msg):
         if msg is not None:
