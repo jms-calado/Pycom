@@ -16,9 +16,9 @@ log = Logger()
 def disableLTE(lte):
     try:
         lte.deinit(detach=True, reset=True)
-        log.bootLog('LTE disabled')
+        log.debugLog('LTE disabled')
     except Exception as lteError:
-        log.bootLog("lteError: {}".format(lteError))
+        log.debugLog("lteError: {}".format(lteError))
 
 # Returns a network.LTE object with an active Internet connection.
 def getLTE(lte):
@@ -76,14 +76,14 @@ def endLTE(lte):
         lte.disconnect()
         log.debugLog("LTE disconnected OK")
     except Exception as lteError:
-        log.bootLog("lteError Disconnecting: {}".format(lteError))
+        log.debugLog("lteError Disconnecting: {}".format(lteError))
     time.sleep(1)
     log.debugLog("Detaching LTE ... ")
     try:
         lte.dettach()
         log.debugLog("LTE detached OK")
     except Exception as lteError:
-        log.bootLog("lteError Detaching: {}".format(lteError))
+        log.debugLog("lteError Detaching: {}".format(lteError))
 
 def send_at_cmd_pretty(lte, cmd):
     response = lte.send_at_cmd(cmd).split('\r\n')
@@ -94,9 +94,9 @@ def startLTE():
     try:
         lte = LTE()
     except Exception as lteError:
-        log.bootLog("lte = LTE(): {}".format(lteError))
+        log.debugLog("lte = LTE(): {}".format(lteError))
         state.CONNECTED = False
-        return lte
+        return
     '''
     # check for a valid iccid (exception is raised if no SIM card is connected)
     try:

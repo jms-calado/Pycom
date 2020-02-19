@@ -90,6 +90,14 @@ if not pycom.wdt_on_boot():
 else:
     log.bootLog('WDT on boot enabled')
 
+# Disable Pybytes
+try:
+    if pycom.pybytes_on_boot():
+        pycom.pybytes_on_boot(False)
+except Exception as pybytesError:
+    log.bootLog("pybytes_on_boot Error: {}".format(pybytesError))
+
+
 # Disable WLAN
 if pycom.wifi_on_boot():
     try:
